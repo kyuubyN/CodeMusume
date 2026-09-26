@@ -1,0 +1,71 @@
+/* Dedicated Cutscene Styling for TrainingAnimationModal */
+
+@keyframes cutscene-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+@keyframes cutscene-scan-v {
+  0% {
+    top: 0%;
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 0.3;
+  }
+  100% {
+    top: 100%;
+    opacity: 0.8;
+  }
+}
+
+@keyframes reticle-breathe {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes bar-stripe-slide {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 40px 0;
+  }
+}
+
+.cutscene-sweep-fx {
+  animation: cutscene-sweep 3s ease-in-out infinite;
+}
+
+.cutscene-scanline-v {
+  animation: cutscene-scan-v 2.5s linear infinite;
+}
+
+.reticle-breathe-fx {
+  animation: reticle-breathe 2s ease-in-out infinite;
+}
+
+.progress-striped {
+  background-size: 20px 20px;
+  background-image: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.15) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.15) 75%,
+    transparent 75%,
+    transparent
+  );
+  animation: bar-stripe-slide 1s linear infinite;
+}

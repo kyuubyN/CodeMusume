@@ -1,26 +1,68 @@
-# Environments
+# Environments & Secrets
 .env
-.env.local
+.env.*
 *.env
 !.env.example
+*.pem
+*.key
+*.cert
+
+# Agent & Prompt Scratchpads
+.agents/
+ORIGINAL_REQUEST.md
 
 # Python
 __pycache__/
 *.py[cod]
-.venv/
+*$py.class
+*.so
+.Python
+env/
 venv/
-.pytest_cache/
-*.egg-info/
-dist/
+.venv/
+ENV/
 build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
 
-# Node
+# Node & Frontend
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 dist/
 dist-ssr/
+*.local
 
-# IDE & OS
+# IDE & System
 .vscode/
 .idea/
+*.sublime-project
+*.sublime-workspace
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+*.log
