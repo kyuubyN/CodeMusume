@@ -1,8 +1,5 @@
-# 🏇 CodeMusume: The Repo Trainer
+# CodeMusume: The Repo Trainer
 
-<p align="center">
-  <img src="frontend/public/assets/codemusume_key_art.jpg" alt="CodeMusume Key Visual" width="100%" />
-</p>
 
 <p align="center">
   <strong>Transforming cold static code analysis into a high-stakes, gamified development experience inspired by <em>Uma Musume: Pretty Derby</em>.</strong>
@@ -20,7 +17,7 @@
 
 ---
 
-## 🌟 The Vision
+##  The Vision
 
 In modern software engineering, codebases suffer from **Architecture Drift**, silent technical debt, and creeping performance bottlenecks. Yet traditional linting, profiling, and static analysis reports often feel like tedious chores—developers ignore warnings until production outages occur.
 
@@ -30,7 +27,7 @@ Under the sharp, eccentric guidance of **Dr. Agnes Tachyon** (Chief Enterprise A
 
 ---
 
-## 📊 The 5 Core Code Attributes
+##  The 5 Core Code Attributes
 
 CodeMusume's AST scanner parses the repository and maps code quality metrics directly to the 5 classic Uma Musume attributes:
 
@@ -44,7 +41,7 @@ CodeMusume's AST scanner parses the repository and maps code quality metrics dir
 
 ---
 
-## ⚡ Key Features
+##  Key Features
 
 - **🔬 Python AST Code Smell Scanner**: Deep static inspection extracting cyclomatic complexity, resource lifetimes, unhandled bare exceptions, and type hints.
 - **👩‍🔬 Dr. Agnes Tachyon Persona**: Mad-scientist persona with authentic Japanese vocalizations (Kokoro TTS / Featherless Cloud API) and bilingual English enterprise subtitles.
@@ -57,7 +54,7 @@ CodeMusume's AST scanner parses the repository and maps code quality metrics dir
 
 ---
 
-## 🏗️ Architecture
+##  Architecture
 
 ```
 [ Frontend: React 18 + Vite + Tailwind CSS + Canvas 2D ]
@@ -77,7 +74,7 @@ CodeMusume's AST scanner parses the repository and maps code quality metrics dir
 
 ---
 
-## 🤖 IBM Bob 2.0 Integration
+##  IBM Bob 2.0 Integration
 
 IBM Bob 2.0 plays a dual role in CodeMusume:
 1. **Platform Engineering**: Bob designed and implemented the full-stack architecture across 7 verified development missions, tracked in [`bob_sessions/SUMMARY.md`](bob_sessions/SUMMARY.md), backed by 312 automated unit tests.
@@ -85,7 +82,7 @@ IBM Bob 2.0 plays a dual role in CodeMusume:
 
 ---
 
-## 🚀 Quickstart
+##  Quickstart
 
 ### Prerequisites
 - Python 3.11+
@@ -130,7 +127,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ---
 
-## 🧪 Testing
+##  Testing
 
 Run the full backend test suite (312 tests covering schemas, AST scanner, training state machine, race simulation, quiz, and voice engine):
 
@@ -147,6 +144,6 @@ npm run build
 
 ---
 
-## 📄 License
+##  License
 
 This project is licensed under the **Apache License 2.0** — see the [LICENSE](LICENSE) file for details.
