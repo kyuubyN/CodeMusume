@@ -68,6 +68,7 @@ class AvatarPose(str, Enum):
     serious = "serious"
     tired = "tired"
     flow = "flow"
+    crazy = "crazy"
 
 
 # ---------------------------------------------------------------------------
@@ -100,6 +101,7 @@ DEFAULT_INITIAL_DIALOGUE = (
 
 
 class GameState(BaseModel):
+    mode: str = "repo"                      # "lab" (career on the specimen) | "repo" (free lab on your code)
     repo_name: str = "code-musume"
     turn: int = 1
     max_turns: int = 12
@@ -110,9 +112,24 @@ class GameState(BaseModel):
     dialogue: str = ""
     is_game_over: bool = False
     interactions_in_cycle: int = 0
-    interactions_required: int = 10
+    interactions_required: int = 3
     race_unlocked: bool = False
     learned_insights: list[str] = Field(default_factory=list)
+
+
+class CodeSmell(BaseModel):
+    """A real finding from the AST scanner, tracked across rescans by a stable key."""
+    id: int
+    key: str
+    attribute: AttributeType
+    rule_id: str
+    file_path: str
+    line_number: int
+    description: str
+    tachyon_critique: str
+    suggested_fix: str
+    code_snippet: str
+    drilled: bool = False
 
 
 class TrainRequest(BaseModel):
@@ -130,6 +147,7 @@ class TrainResult(BaseModel):
     pose: AvatarPose
     updated_state: GameState
     mcp_insight: str | None = None
+    smell: CodeSmell | None = None
 
 
 class RestResult(BaseModel):
@@ -196,3 +214,12 @@ class RaceCompleteRequest(BaseModel):
     place: int = 1
     points_awarded: int = 0
 
+
+
+class RescanResult(BaseModel):
+    """Outcome of re-scanning the repository after the trainer edited real code."""
+    fixed: list[CodeSmell]
+    new: list[CodeSmell]
+    remaining: int
+    attribute_deltas: dict[str, int]
+    updated_state: GameState

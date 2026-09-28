@@ -115,8 +115,15 @@ def _rival_speed(rival: RaceRival, current_distance: float) -> float:
             speed_factor = (1.0 + (attrs.speed - 200) / 2000.0) * (1.0 - 0.65 * exhaustion)
         return base * speed_factor
 
-    # Generic fallback
+    # Generic runner (e.g. the ghost of a past career): paced like the player,
+    # with the same stamina fade after 1,200 m.
     speed_factor = 1.0 + (attrs.speed - 200) / 2000.0
+    if current_distance >= SECTOR_2_END:
+        speed_factor *= max(0.85, 1.0 - (current_distance - 1200.0) / (max(attrs.stamina, 1) * 5.0))
+    if SECTOR_1_END <= current_distance < SECTOR_2_END and attrs.power < POWER_PENALTY_THRESHOLD:
+        speed_factor *= 0.80
+    if current_distance >= SECTOR_3_END and attrs.wisdom >= WISDOM_GOLD_SKILL_THRESHOLD:
+        speed_factor *= 1.30
     return base * speed_factor
 
 
@@ -215,8 +222,9 @@ def _incident_sector4(player_wisdom: int) -> RaceIncident:
 class RaceSimulator:
     """Simulates the 2,000-meter URA Production Derby in 100 ticks."""
 
-    def __init__(self, player_attributes: AttributeScores) -> None:
+    def __init__(self, player_attributes: AttributeScores, rivals: list[RaceRival] | None = None) -> None:
         self.player_attributes = player_attributes
+        self._rivals = rivals
         # Pre-compute incidents once so they're consistent across the simulation
         self._incident_s2 = _incident_sector2(player_attributes.power)
         self._incident_s3 = _incident_sector3(player_attributes.guts)
@@ -227,7 +235,7 @@ class RaceSimulator:
     def run_simulation(self) -> list[RaceTick]:
         """Simulate the full race and return all 100 RaceTick objects (1-indexed)."""
         attrs = self.player_attributes
-        rivals = _make_rivals()
+        rivals = [r.model_copy(deep=True) for r in self._rivals] if self._rivals else _make_rivals()
 
         player_distance: float = 0.0
         player_frozen_ticks: int = 0      # remaining freeze ticks from sector-3 incident

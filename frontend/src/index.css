@@ -3,30 +3,70 @@
 @tailwind utilities;
 
 @layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
   body {
     margin: 0;
-    padding: 0;
-    font-family: 'Nunito', sans-serif;
-    background-color: #020617;
-    color: #f8fafc;
-    overflow-x: hidden;
-    user-select: none;
-    -webkit-user-select: none;
+    @apply bg-ink font-sans text-ink antialiased;
+  }
+  :focus-visible {
+    @apply outline outline-2 outline-offset-2 outline-acc;
   }
 }
 
-/* Custom retro/arcade styling */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+@layer components {
+  /* Paper panel with the yellow tab mark in the top-left corner. */
+  .ef-panel {
+    @apply relative border border-hair bg-paper/95 text-ink shadow-[0_12px_32px_-16px_rgba(0,0,0,0.55)];
+  }
+  .ef-panel::before {
+    content: '';
+    @apply absolute -top-px left-0 h-[3px] w-10 bg-acc;
+  }
+  .ef-label {
+    @apply font-cond text-[11px] font-semibold uppercase tracking-[0.2em] text-sub;
+  }
+  .ef-title {
+    @apply font-cond text-[15px] font-bold uppercase tracking-[0.12em] text-ink;
+  }
+  .ef-num {
+    @apply font-cond font-bold tabular-nums leading-none;
+  }
+  .ef-tag {
+    @apply inline-flex items-center bg-ink px-1.5 py-px font-cond text-[10px] font-bold uppercase tracking-[0.14em] text-paper;
+  }
+  .ef-btn {
+    @apply inline-flex h-10 items-center justify-center gap-2 px-4 font-cond text-[13px] font-bold uppercase tracking-[0.16em] transition-colors
+      disabled:cursor-not-allowed disabled:opacity-35;
+  }
+  .ef-btn-dark {
+    @apply ef-btn bg-ink text-paper enabled:hover:bg-acc enabled:hover:text-ink;
+  }
+  .ef-btn-acc {
+    @apply ef-btn bg-acc text-ink enabled:hover:bg-ink enabled:hover:text-acc;
+  }
+  .ef-btn-line {
+    @apply ef-btn border border-ink/25 text-ink enabled:hover:border-ink enabled:hover:bg-ink enabled:hover:text-paper;
+  }
+  /* Hazard stripe */
+  .ef-hazard {
+    background-image: repeating-linear-gradient(-45deg, #ffe100 0 6px, #141517 6px 12px);
+  }
+  .scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(20, 21, 23, 0.25) transparent;
+  }
 }
-::-webkit-scrollbar-track {
-  background: #0f172a;
-}
-::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

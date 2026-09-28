@@ -10,6 +10,9 @@ from fastapi import APIRouter, Body, HTTPException, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from app.core.config import BACKEND_DIR, PROJECT_ROOT, get_settings
+from app.lab.findings import scan_repo_full
+from app.lab.game import LabGame
 from app.models.schemas import (
     DEFAULT_INITIAL_DIALOGUE,
     AttributeType,
@@ -30,7 +33,6 @@ from app.services.knowledge_service import KnowledgeService, memory_store
 from app.services.mcp_research_service import McpResearchService
 from app.services.quiz_service import QuizService
 from app.services.race_service import RaceSimulator
-from app.services.scanner_service import RepoScanner
 from app.services.trainer_service import TrainerEngine
 from app.services.tts_service import TTSService
 
@@ -43,10 +45,30 @@ router = APIRouter(prefix="/api")
 _engine: TrainerEngine = TrainerEngine(GameState(dialogue=DEFAULT_INITIAL_DIALOGUE))
 _gateway: FeatherlessGateway = FeatherlessGateway()
 _tts: TTSService = TTSService()
+_lab: LabGame | None = None
 
 
 def _get_engine() -> TrainerEngine:
     return _engine
+
+
+def get_lab() -> LabGame:
+    global _lab
+    if _lab is None:
+        _lab = LabGame(get_settings().LAB_DATA_DIR)
+    return _lab
+
+
+def set_lab(lab: LabGame) -> None:
+    global _lab
+    _lab = lab
+
+
+async def start_lab_career(fresh: bool = False) -> TrainerEngine:
+    """Start (or resume) a career on the lab specimen."""
+    lab = get_lab()
+    state = await lab.start_career(fresh=fresh)
+    return _reset_engine(state)
 
 
 def _reset_engine(state: GameState | None = None) -> TrainerEngine:
@@ -77,6 +99,34 @@ class ScanRequest(BaseModel):
     target_path: str = "."
 
 
+def resolve_repo_path(target_path: str) -> str:
+    """Resolve a repo path given relative to the cwd, the backend or the project root."""
+    target_path = os.path.expanduser(target_path)
+    for base in ("", str(BACKEND_DIR), str(PROJECT_ROOT)):
+        candidate = os.path.join(base, target_path) if base else target_path
+        if os.path.exists(candidate):
+            return candidate
+    return "."
+
+
+def scan_into_engine(target_path: str) -> TrainerEngine:
+    """Scan a repository and start a fresh engine seeded with its scores and smells."""
+    target_path = resolve_repo_path(target_path)
+    scores, smells = scan_repo_full(target_path)
+    if _lab is not None:
+        _lab.mode = "repo"
+        _lab.experiment = None
+        _lab.review = None
+    new_state = GameState(
+        repo_name=os.path.basename(os.path.abspath(target_path)) or "repo",
+        attributes=scores,
+        dialogue=DEFAULT_INITIAL_DIALOGUE,
+    )
+    engine = _reset_engine(new_state)
+    engine.load_scan(smells, target_path)
+    return engine
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -89,24 +139,8 @@ async def get_state() -> GameState:
 
 @router.post("/scan", response_model=GameState)
 async def scan(body: ScanRequest = Body(default=ScanRequest())) -> GameState:
-    """Scan a repository path, set initial attributes, and return new GameState."""
-    target_path = body.target_path
-    if not os.path.exists(target_path):
-        if os.path.exists(os.path.join("..", target_path)):
-            target_path = os.path.join("..", target_path)
-        else:
-            target_path = "."
-
-    scanner = RepoScanner(target_path=target_path)
-    scores, _ = scanner.scan_repository()
-
-    # Build a fresh game state seeded with scanned attribute scores
-    new_state = GameState(
-        repo_name=os.path.basename(os.path.abspath(target_path)) or "repo",
-        attributes=scores,
-    )
-    _reset_engine(new_state)
-    return _get_engine().state
+    """Scan a repository path, set initial attributes and smells, and return new GameState."""
+    return scan_into_engine(body.target_path).state
 
 
 @router.post("/train", response_model=TrainResult)

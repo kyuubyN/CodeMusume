@@ -2,17 +2,35 @@
 from __future__ import annotations
 
 import copy
+import os
 import random
+from typing import TYPE_CHECKING
 
 from app.models.schemas import (
     AttributeScores,
     AttributeType,
     AvatarPose,
+    CodeSmell,
     GameState,
     MoodState,
+    RescanResult,
     RestResult,
     TrainResult,
 )
+
+if TYPE_CHECKING:
+    from app.services.scanner_service import DetectedSmell
+
+# Extra stat gain when a training session drills a real code smell
+_SMELL_DRILL_BONUS = 8
+
+# Rule severity (mirrors the scanner penalties) — worst smells are listed first
+_RULE_SEVERITY: dict[str, int] = {
+    "STAMINA-001": 50, "SPEED-001": 40, "STAMINA-002": 40, "WISDOM-002": 35,
+    "SPEED-002": 30, "POWER-001": 30, "GUTS-001": 30, "GUTS-002": 25, "WISDOM-001": 20,
+    # whole-program analyzer rules (app.lab.findings)
+    "STAMINA-003": 55, "SPEED-003": 45, "STAMINA-004": 45, "WISDOM-003": 40, "POWER-002": 35, "WISDOM-004": 30,
+}
 
 # ---------------------------------------------------------------------------
 # Mood ordering — used to step up/down one rank
@@ -86,6 +104,118 @@ class TrainerEngine:
         self.state: GameState = (
             copy.deepcopy(initial_state) if initial_state is not None else GameState()
         )
+        # Attributes = scanned base + accumulated training bonus, so a rescan
+        # can refresh the base from real code without erasing training progress.
+        self.base_attributes: AttributeScores = self.state.attributes.model_copy()
+        self.training_bonus: dict[str, int] = {a.value: 0 for a in AttributeType}
+        self.smells: list[CodeSmell] = []
+        self._next_smell_id = 1
+        self.repo_root: str = "."
+
+    # ------------------------------------------------------------------ #
+    # Code smells (real scanner findings)
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def _smell_key(detected: "DetectedSmell", repo_root: str) -> str:
+        rel = os.path.relpath(detected.file_path, repo_root)
+        return f"{detected.rule_id}|{rel}|{detected.description}"
+
+    def _to_code_smell(self, detected: "DetectedSmell", repo_root: str, key: str) -> CodeSmell:
+        smell = CodeSmell(
+            id=self._next_smell_id,
+            key=key,
+            attribute=detected.attribute,
+            rule_id=detected.rule_id,
+            file_path=os.path.relpath(detected.file_path, repo_root),
+            line_number=detected.line_number,
+            description=detected.description,
+            tachyon_critique=detected.tachyon_critique,
+            suggested_fix=detected.suggested_fix,
+            code_snippet=detected.code_snippet,
+        )
+        self._next_smell_id += 1
+        return smell
+
+    def load_scan(self, detected: list["DetectedSmell"], repo_root: str) -> None:
+        """Replace the tracked smells with a fresh scan (numbered from 1)."""
+        self.repo_root = repo_root
+        self.smells = []
+        self._next_smell_id = 1
+        # Number worst-first so "smell number one" is the one that matters most.
+        ranked = sorted(
+            enumerate(detected),
+            key=lambda p: (-_RULE_SEVERITY.get(p[1].rule_id, 0), p[0]),
+        )
+        for _, d in ranked:
+            self.smells.append(self._to_code_smell(d, repo_root, self._smell_key(d, repo_root)))
+
+    def open_smells(self, attribute: AttributeType | None = None) -> list[CodeSmell]:
+        """Smells not yet drilled in training (worst first), optionally filtered by attribute."""
+        found = [
+            s for s in self.smells
+            if not s.drilled and (attribute is None or s.attribute == attribute)
+        ]
+        return sorted(found, key=lambda s: (-_RULE_SEVERITY.get(s.rule_id, 0), s.id))
+
+    def get_smell(self, smell_id: int) -> CodeSmell | None:
+        return next((s for s in self.smells if s.id == smell_id), None)
+
+    def rescan(
+        self,
+        scores: AttributeScores,
+        detected: list["DetectedSmell"],
+        repo_root: str,
+    ) -> RescanResult:
+        """Diff a new scan against tracked smells and refresh the scanned base.
+
+        Smells whose key disappeared were really fixed in the code; they drop
+        off the list. Surviving smells keep their id (and drilled flag) so the
+        numbers the trainer has been hearing stay stable.
+        """
+        old_by_key = {s.key: s for s in self.smells}
+        new_keys: list[str] = []
+        kept: list[CodeSmell] = []
+        new: list[CodeSmell] = []
+        for d in detected:
+            key = self._smell_key(d, repo_root)
+            new_keys.append(key)
+            if key in old_by_key:
+                prev = old_by_key[key]
+                kept.append(prev.model_copy(update={
+                    "line_number": d.line_number,
+                    "code_snippet": d.code_snippet,
+                }))
+            else:
+                smell = self._to_code_smell(d, repo_root, key)
+                kept.append(smell)
+                new.append(smell)
+        fixed = [s for k, s in old_by_key.items() if k not in set(new_keys)]
+        self.smells = kept
+
+        deltas = {
+            a.value: getattr(scores, a.value) - getattr(self.base_attributes, a.value)
+            for a in AttributeType
+        }
+        self.base_attributes = scores.model_copy()
+        new_attrs = AttributeScores(**{
+            a.value: getattr(scores, a.value) + self.training_bonus[a.value]
+            for a in AttributeType
+        })
+        pose = AvatarPose.happy if fixed and not new else (
+            AvatarPose.shocked if new and not fixed else AvatarPose.thinking
+        )
+        self.state = self.state.model_copy(update={
+            "attributes": new_attrs,
+            "current_pose": pose,
+        })
+        return RescanResult(
+            fixed=fixed,
+            new=new,
+            remaining=len(self.open_smells()),
+            attribute_deltas=deltas,
+            updated_state=self.state,
+        )
 
     # ------------------------------------------------------------------ #
     # Failure rate
@@ -108,8 +238,20 @@ class TrainerEngine:
     # Train
     # ------------------------------------------------------------------ #
 
-    def train(self, attribute: AttributeType) -> TrainResult:
-        """Execute one training action and return the result."""
+    def train(self, attribute: AttributeType, smell_id: int | None = None) -> TrainResult:
+        """Execute one training action and return the result.
+
+        Training drills a real code smell when one is available: the given
+        ``smell_id`` (whose attribute wins), otherwise the first open smell of
+        ``attribute``. A successful drill grants a bonus and marks it drilled.
+        """
+        smell = self.get_smell(smell_id) if smell_id is not None else None
+        if smell is not None:
+            attribute = smell.attribute
+        else:
+            candidates = self.open_smells(attribute)
+            smell = candidates[0] if candidates else None
+
         state = self.state
         failure_rate = self.calculate_failure_rate()
         failed = random.random() < failure_rate
@@ -119,6 +261,11 @@ class TrainerEngine:
             base_gain = random.randint(25, 35)
             multiplier = _MOOD_MULTIPLIER[state.mood]
             stat_gained = max(1, round(base_gain * multiplier))
+            if smell is not None and not smell.drilled:
+                stat_gained += _SMELL_DRILL_BONUS
+                smell = smell.model_copy(update={"drilled": True})
+                self.smells = [smell if s.id == smell.id else s for s in self.smells]
+            self.training_bonus[attribute.value] += stat_gained
             energy_spent = 20
             pose = random.choice([AvatarPose.happy, AvatarPose.serious])
             commentary = random.choice(_TACHYON_SUCCESS)
@@ -170,6 +317,7 @@ class TrainerEngine:
             tachyon_commentary=commentary,
             pose=pose,
             updated_state=updated,
+            smell=smell,
         )
 
     # ------------------------------------------------------------------ #

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import os
+import textwrap
 from typing import Any
 
 from pydantic import BaseModel
@@ -110,7 +111,8 @@ def _snippet(lines: list[str], lineno: int, context: int = 1) -> str:
     """Return *context* lines around *lineno* (1-based), joined as a string."""
     start = max(0, lineno - 1 - context)
     end = min(len(lines), lineno + context)
-    return "\n".join(lines[start:end]).strip()
+    # Keep line structure (first line = lineno - context) so the UI can number it.
+    return textwrap.dedent("\n".join(lines[start:end])).rstrip()
 
 
 # ---------------------------------------------------------------------------

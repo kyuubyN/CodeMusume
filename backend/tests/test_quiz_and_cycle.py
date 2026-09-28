@@ -71,20 +71,20 @@ async def test_quiz_generation_and_evaluation():
     assert isinstance(eval_resp.speed_delta, float)
 
 
-def test_trainer_10_interaction_cycle(trainer_engine):
+def test_trainer_interaction_cycle(trainer_engine):
     engine = trainer_engine
+    required = engine.state.interactions_required
     assert engine.state.interactions_in_cycle == 0
     assert not engine.state.race_unlocked
 
-    # 9 chat interactions
-    for _ in range(9):
+    for _ in range(required - 1):
         engine.record_chat_interaction()
-    assert engine.state.interactions_in_cycle == 9
+    assert engine.state.interactions_in_cycle == required - 1
     assert not engine.state.race_unlocked
 
-    # 10th interaction unlocks the Grand Derby
+    # Final qualifying interaction unlocks the Grand Derby
     engine.record_chat_interaction()
-    assert engine.state.interactions_in_cycle == 10
+    assert engine.state.interactions_in_cycle == required
     assert engine.state.race_unlocked
 
     # Complete race resets the cycle
