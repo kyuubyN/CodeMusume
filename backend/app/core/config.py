@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -22,7 +23,9 @@ class Settings(BaseSettings):
     # "lab" starts a career on the bundled specimen; a path starts the free lab on that repo.
     TARGET_REPO_PATH: str = "lab"
     # Profile, trainee working copy and harness scratch space (gitignored).
-    LAB_DATA_DIR: str = str(BACKEND_DIR / ".lab")
+    LAB_DATA_DIR: str = str(
+        Path("/tmp/.lab") if os.environ.get("VERCEL") else (BACKEND_DIR / ".lab")
+    )
 
     FEATHERLESS_API_KEY: str = ""
     FEATHERLESS_BASE_URL: str = "https://api.featherless.ai/v1"
